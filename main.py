@@ -35,3 +35,4 @@ def load_image_from_path(path: str):
 
 
 print(read_paths_and_classify())
+
