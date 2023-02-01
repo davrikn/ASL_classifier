@@ -19,7 +19,7 @@ class ImageLoader:
                 images.append([base_path + "/" + c + "/" + file, class_id])
         return images
 
-    def load_image_from_path(self: str):
-        img = cv.imread(self, cv.IMREAD_GRAYSCALE)
+    def load_image_from_path(self, path: str):
+        img = cv.imread(path, cv.IMREAD_GRAYSCALE)
         img = np.array(img).flatten()
         return img
