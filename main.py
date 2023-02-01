@@ -16,4 +16,3 @@ files = 0
 
 
 ImageLoader.read_paths_and_classify()
-
