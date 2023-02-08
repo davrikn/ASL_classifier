@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 from os import listdir
 
-class ImageLoader:
+class ImagePathLoader:
 
     def read_paths_and_classify(base_path: str = './data/asl_alphabet_train'):
         """
@@ -21,12 +21,12 @@ class ImageLoader:
         return images
 
 
-    def load_image_from_path(path: str):
-        """
-        Load an image from path in color and return it as an array
-        :param path: Path to a specific image
-        :return: (200x200x3) array with the image
-        """
-        img = cv.imread(path, cv.IMREAD_COLOR)
-        img = np.array(img)
-        return img
+    # def load_image_from_path(path: str):
+    #     """
+    #     Load an image from path in color and return it as an array
+    #     :param path: Path to a specific image
+    #     :return: (200x200x3) array with the image
+    #     """
+    #     img = cv.imread(path, cv.IMREAD_COLOR)
+    #     img = np.array(img)
+    #     return img
