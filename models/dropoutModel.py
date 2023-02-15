@@ -12,7 +12,7 @@ class DropoutModel(nn.Module):
         self.fc1 = nn.Linear(128 * 25 * 25, 512)
         self.dropout1 = nn.Dropout(p=0.1)
         self.fc2 = nn.Linear(512, 29)
-        self.load_state_dict(torch.load("../model_dropout_v2.pth"))
+        self.load_state_dict(torch.load("../model_states/model_dropout_v2.pth"))
 
     def forward(self, x):
         x = self.pool(torch.relu(self.conv1(x)))
