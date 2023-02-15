@@ -49,13 +49,13 @@ class App:
         ret, frame = self.vid.get_frame()
         if self.i<30:
             self.snapshot()
-            a=PIL.Image.open('frame-08-02-2023-14-07-18.jpg')
-            width,height=a.size
+            a=PIL.Image.open('frame-08-02-2023-15-38-51.jpg')          #remove #
+            width,height=a.size                #remove #
             #print("width",width)
             #print("height",height)
             #im1 = im.crop((left, top, right, bottom))
             #80,480,560,0
-            im1 = frame.crop(((width-height)/2, 0, width-((width-height)/2), height))
+            im1 = a.crop(((width-height)/2, 0, width-((width-height)/2), height))
             #im1 = a.crop((1, 1, 200,300))
             im1.save('image_400_lol.jpg')
             new_image = im1.resize((200, 200))
