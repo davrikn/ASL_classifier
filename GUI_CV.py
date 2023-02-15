@@ -4,6 +4,10 @@ import PIL.Image, PIL.ImageTk
 import time
 #from PIL import Image
 from tkinter import *
+import random
+import numpy as np
+from matplotlib import cm
+import copy
 
 class App:
     def __init__(self, window, window_title, video_source=0):
@@ -12,6 +16,10 @@ class App:
         self.video_source = video_source
         self.i=0
 
+        #greeting = tk.Label(text="Hello, Tkinter")
+        greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
+        greeting.pack()
+
         # open video source (by default this will try to open the computer webcam)
         self.vid = MyVideoCapture(self.video_source)
 
@@ -19,16 +27,18 @@ class App:
         self.canvas = tkinter.Canvas(window, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
 
-        #greeting = tk.Label(text="Hello, Tkinter")
-        greeting = tkinter.Label(text="Hello, Tkinter")
-        greeting.pack()
-
         # Button that lets the user take a snapshot
-        self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=50, command=self.snapshot)
-        self.btn_snapshot.pack(anchor=tkinter.CENTER, expand=True)
+        #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=50, command=self.snapshot)
+        #self.btn_snapshot.pack(anchor=tkinter.CENTER, expand=True)
+
+        self.my_output_text="aa"
+        self.output_text = tkinter.Label(text=self.my_output_text)
+        self.output_text.pack()
 
         # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 15
+        self.delay = 150
+        #window.update_idletasks()
+        #print("updated")
 
         self.update()
         self.window.mainloop()
@@ -47,10 +57,19 @@ class App:
     def update(self):
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
-        if self.i<30:
+        #print("frame_type:",type(frame))
+        if self.i<10:
             self.snapshot()
-            a=PIL.Image.open('frame-08-02-2023-15-38-51.jpg')          #remove #
-            width,height=a.size                #remove #
+            #print("my frame is",frame)
+            frame2=copy.copy(frame)
+            frame2=frame2
+            im = PIL.Image.fromarray(np.array(frame2).astype("uint8"))
+            #print("im_type",type(im))
+
+            #a=PIL.Image.open('frame-08-02-2023-15-38-51.jpg')
+            a=im
+            print("TYPE:",type(a))
+            width,height=a.size
             #print("width",width)
             #print("height",height)
             #im1 = im.crop((left, top, right, bottom))
@@ -61,6 +80,8 @@ class App:
             new_image = im1.resize((200, 200))
             new_image.save('image_400.jpg')
             self.i+=1
+        prediction=random.randint(0,10)#exchange with actual prediction from network
+        self.output_text.config(text = str(prediction))
             
 
         if ret:
