@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 class DropoutModel(nn.Module):
+
     def __init__(self):
         super(DropoutModel, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
@@ -26,7 +27,6 @@ class DropoutModel(nn.Module):
 
     def predict(self, x: list[list[list[int]]]):
         """
-
         :param x: A 3-dimensional array with dimensions [RGB, x, y]
         :return: class number which is predicted by the model
         """
