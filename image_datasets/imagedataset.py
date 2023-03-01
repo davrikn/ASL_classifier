@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset
 from torchvision.io import read_image
-from imagepathloader import ImagePathLoader
+from image_datasets.imagepathloader import ImagePathLoader
 
 
 class ImageDataset(Dataset):
