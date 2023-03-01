@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from imagepathloader import ImagePathLoader
 from imagedataset import ImageDataset
-from get_image_stats import get_image_stats
+from image_datasets.get_image_stats import get_image_stats
 
 # cv.imshow("Window", img)
 # cv.waitKey(0) & 0xFF
