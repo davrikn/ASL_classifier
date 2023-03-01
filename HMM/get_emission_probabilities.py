@@ -22,17 +22,18 @@ def get_emission_probabilities(model: nn.Module, testloader: DataLoader, normali
         m is the amount of classes. Rows indicate true class.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.eval()
 
     # TODO: Figure out how to retrieve m from model or trainloader
     m = 29
 
     # Assigning normalizer
-    if normalizer == "softmax": normalizer = torch.softmax
+    if normalizer == "softmax": normalizer = nn.Softmax(dim=1)
     elif normalizer == "norm":  normalizer = lambda x: x/np.linalg.norm(x, ord=1)
     else: raise RuntimeError("Normalizer not recognized. Please use either \"softmax\" or \"norm\".")
 
     # Prediction for all test data
-    pred = np.empty(0, dtype=object)
+    pred = []
     labs = np.empty(0, dtype=object)
 
     with torch.no_grad():
@@ -42,15 +43,16 @@ def get_emission_probabilities(model: nn.Module, testloader: DataLoader, normali
             labels = labels.to(device)
             
             # Assuming shape m x n (n amount of datapoints)
-            pred = np.append(pred, normalizer(model(images)).numpy())
-            labs = np.append(labs, normalizer(model(images)).numpy())
+            pred.append(normalizer(model(images)).numpy())
+            labs = np.append(labs, labels)
         
     # Emission probabilities:
     emissions = np.ones((m, m))/m # Initialized as discrete uniform distribution.
 
     for x in range(m):
-        emissions[x] = normalizer(
-            pred[labs == x, :].mean(axis=1).flatten()
-        )
+        if np.any(labs == x):
+            emissions[x] = normalizer(
+                pred[labs == x, :].mean(axis=0).flatten()
+            )
         
     return emissions
