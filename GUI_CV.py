@@ -115,15 +115,17 @@ class App:
         frameA=np.array(frame)
         frameA=frameA.transpose(2,0,1)
         frame3=frameA.tolist()
-        """
+        
         for i in range(len(frame3)):
             for j in range(len(frame3[i])):
                 for k in range(len(frame3[i][j])):
                     #print("k:",k)
-                    frame3[i][j][k]=float(frame3[i][j][k])"""
-        frameq=np.array(frame3,dtype=int)
-        #frameq=np.array(frame3,dtype=float)
+                    frame3[i][j][k]=float(frame3[i][j][k])
+        #frameq=np.array(frame3,dtype=int)
+        frameq=np.array(frame3,dtype=float)
+        print("yolo-type1",type(frameq[1][1][1]))
         frame_changed=torch.tensor(frameq)
+        print("yolo-type2",type(frame_changed[1][1][1]))
         prediction=self.model.predict(frame_changed)               #remove #
 
         self.output_text.config(text = str(prediction))               #remove #
