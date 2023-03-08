@@ -4,6 +4,10 @@ from flask import Flask, request, abort, jsonify
 app = Flask(__name__)
 app.config.update()
 
+@app.route('/health', methods=['GET'])
+def health():
+    return "OK"
+
 @app.route('/predict', methods=["GET"])
 def predict_data():
     image = request.args.get("image", '')
