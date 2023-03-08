@@ -1,3 +1,5 @@
+from numpy import std
+from matplotlib.pyplot import imshow, colorbar
 from torch.utils.data import DataLoader, random_split
 from image_datasets.imagedataset import ImageDataset
 from HMM.get_emission_probabilities import get_emission_probabilities
@@ -16,8 +18,9 @@ def test_get_emission_probabilities(N: int = 87000) -> None:
     """
     assert 0 < N <= 87000
     images, _ = random_split(ImageDataset(), (N, 87000 - N))
-    loader = DataLoader(images, batch_size=1000, shuffle=False)
+    loader = DataLoader(images, batch_size=N, shuffle=True)
     model = DropoutModel()
     load_model(model, model_path="./models/saved/model_dropout_v3.pth")
     emission_probabilities = get_emission_probabilities(model, testloader=loader)
-    print(emission_probabilities)
+    c = imshow(emission_probabilities)
+    colorbar(c)

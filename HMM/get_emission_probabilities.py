@@ -4,10 +4,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 
-def get_emission_probabilities(model: nn.Module, testloader: DataLoader, normalizer: str = "softmax") -> None:
+def get_emission_probabilities(model: nn.Module, testloader: DataLoader) -> None:
     """
-    WARNING: THIS FUNCTION IS NOT TESTED
-
     Given a trained pytorch model and related testing data, estimates and returns
     an emission probability matrix, i.e. P( Y | X = x ) for all true classes X,
     and all predicted classes Y. This is done by summing up individual distributions
@@ -27,32 +25,35 @@ def get_emission_probabilities(model: nn.Module, testloader: DataLoader, normali
     # TODO: Figure out how to retrieve m from model or trainloader
     m = 29
 
-    # Assigning normalizer
-    if normalizer == "softmax": normalizer = nn.Softmax(dim=1)
-    elif normalizer == "norm":  normalizer = lambda x: x/np.linalg.norm(x, ord=1)
-    else: raise RuntimeError("Normalizer not recognized. Please use either \"softmax\" or \"norm\".")
-
-    # Prediction for all test data
-    pred = []
-    labs = np.empty(0, dtype=object)
+    # Normalizing function
+    def norm(data, axis=0):
+        """
+        This is an ugly function for ugly people
+        """
+        if not isinstance(data, np.ndarray):
+            data = data.numpy()
+        if axis == 1:
+            data -= data.min(axis=1)[:, None]
+            data_norm = np.linalg.norm(data, ord=1, axis=1)
+            return data/data_norm[:, None]
+        else:
+            data -= data.min(axis=0)
+            data_norm = np.linalg.norm(data, ord=1)
+            return data/data_norm
 
     with torch.no_grad():
-
-        for (images, labels) in testloader:
+        for images, labels in testloader:
             images = images.float().to(device)
-            labels = labels.to(device)
-            
-            # Assuming shape m x n (n amount of datapoints)
-            pred.append(normalizer(model(images)).numpy())
-            labs = np.append(labs, labels)
-        
+            labels = labels.to(device).numpy()
+            pred = norm((model(images)).numpy(), axis=1)
+    
     # Emission probabilities:
     emissions = np.ones((m, m))/m # Initialized as discrete uniform distribution.
 
     for x in range(m):
-        if np.any(labs == x):
-            emissions[x] = normalizer(
-                pred[labs == x, :].mean(axis=0).flatten()
+        if np.any(labels == x):
+            emissions[x] = norm(
+                pred[labels == x, :].mean(axis=0)
             )
         
     return emissions
