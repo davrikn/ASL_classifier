@@ -15,7 +15,9 @@ from tests.test_get_emission_probabilities import test_get_emission_probabilitie
 # cv.waitKey(0) & 0xFF
 
 def main():
-    test_get_emission_probabilities(N=100)
+    # test_get_emission_probabilities(N=100)
+    images = ImageDataset()
+    images[0]
 
 if __name__ == "__main__":
     main()
