@@ -1,16 +1,21 @@
 import numpy as np
 import cv2 as cv
-import torch as tr
+import torch
 import os.path as path
 from os import listdir
 import matplotlib.pyplot as plt
 
-from imagepathloader import ImagePathLoader
-from imagedataset import ImageDataset
-from get_image_stats import get_image_stats
+from image_datasets.imagedataset import ImageDataset
+from models.dropoutModel import DropoutModel
+from predictor import predict, load_model
+
+from tests.test_get_emission_probabilities import test_get_emission_probabilities
 
 # cv.imshow("Window", img)
 # cv.waitKey(0) & 0xFF
 
+def main():
+    test_get_emission_probabilities(N=100)
+
 if __name__ == "__main__":
-    print(get_image_stats())
+    main()
