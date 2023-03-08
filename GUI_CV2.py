@@ -13,7 +13,20 @@ import dropoutModel
 import torch
 import numpy.ma as ma
 from predictor import predict
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
+"""
+root = tk.Tk()
+fig, ax = plt.subplots()
+ 
+canvas = FigureCanvasTkAgg(fig, root)
+canvas.draw()
+canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+ 
+root.mainloop()
+"""
 
 class App:
     def __init__(self, window, window_title, video_source=0):
@@ -21,11 +34,12 @@ class App:
         self.window.title(window_title)
         self.video_source = video_source
         self.i=0
+        self.last_times=[]
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
         greeting.pack()
 
-        # open video source (by default this will try to open the computer webcam)
+        # Open video source (by default this will try to open the computer webcam)
         self.vid = MyVideoCapture(self.video_source)
 
         # Create a canvas that can fit the above video source size
@@ -37,16 +51,42 @@ class App:
         self.output_text = tkinter.Label(text=self.my_output_text)
         self.output_text.pack()
 
-        # Button for settings
-        self.btn_settings=tkinter.Button(window, text="Settings", width=10, command=self.openNewWindow)
-        self.btn_settings.pack(anchor=tkinter.SW, expand=True)
+        # Buttons for settings and keyboard
+        top = Frame(self.window)
+        top.pack(side=TOP)
+        self.btn_settings=tkinter.Button(window, text="Settings", width=10, height=2, command=self.openNewWindow)
+        self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.keyboard)
+        #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=10, height=2, command=self.snapshot)
+        self.btn_settings.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
+        self.btn_keyboard.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
+        top.pack(side=TOP)
 
         #Initializing our model
         self.model=dropoutModel.DropoutModel()
+        #print("conv1",self.model.conv1)
+        #print("size",self.model.size())
+        #top = Frame(self.window)
+        #top.pack(side=TOP)
+        #bottom = Frame(self.window)
+        #b = Button(self.window, text="Enter", width=10, height=2)
+        #c = Button(self.window, text="Clear", width=10, height=2)
+        #self.btn_settings.pack(in_=top, side=LEFT)
+        #self.btn_keyboard.pack(in_=top, side=LEFT)
+        #bottom = Frame(self.window)
+        #top.pack(side=TOP)
+        #bottom.pack(side=BOTTOM, fill=BOTH, expand=True)
 
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
         #window.update_idletasks()
+
+        self.fig, self.ax = plt.subplots()
+        self.ax.plot(0,0)
+ 
+        self.canvas2 = FigureCanvasTkAgg(self.fig, self.window)
+        self.canvas2.draw()
+        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+
         self.update()
         self.window.mainloop()
     
@@ -62,9 +102,29 @@ class App:
         # sets the geometry of toplevel
         a=str(self.vid.width)+"w"+str(self.vid.height)
         newWindow.geometry("600x600")
+        # create the main sections of the layout, 
+
+
+        # and lay them out
+        #top = Frame(self.window)
+        #bottom = Frame(self.window)
+        #top.pack(side=TOP)
+        #bottom.pack(side=BOTTOM, fill=BOTH, expand=True)
+
+        # create the widgets for the top part of the GUI,
+        # and lay them out
+        top = Frame(self.window)
+        b = Button(self.window, text="Enter", width=10, height=2)
+        c = Button(self.window, text="Clear", width=10, height=2)
+        b.pack(in_=top, side=LEFT)
+        c.pack(in_=top, side=RIGHT)
     
         # A Label widget to show in toplevel
         Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher.").pack()
+
+    def keyboard(self):
+        self.keyboard=True
+        print("Activated keyboard")
 
     def snapshot(self):
         # Get a frame from the video source
@@ -76,14 +136,25 @@ class App:
     def update(self):
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
+        now = time.time()
+        if len(self.last_times) == 20:
+            self.last_times.append(round(now-self.last_time,3))
+            self.last_times.pop(0)
+        else:
+            try:
+                self.last_times.append(round(now-self.last_time,3))
+            except:
+                useless_variable=1
+
         #Converting to PIL
-        #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/A1.jpg")       #testing on image A1 works.
+        #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/data/asl_alphabet_train/A/A2.jpg")       #testing on image A2 works.
         im = PIL.Image.fromarray(np.array(frame).astype("uint8"))
 
         #Cropping to 200x200
         width,height=im.size
         im = im.crop(((width-height)/2, 0, width-((width-height)/2), height))
         im = im.resize((200, 200))
+        #im.save("aaaaaaaaaa.jpg")
         #Transposing and transforming into a tensor
         im=np.array(im)
         copied=copy.copy(im)
@@ -102,22 +173,40 @@ class App:
 
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        #make prediction
+        #Make prediction
         prediction=predict(self.model,"C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/model_dropout_v3.pth",copied2,device=device)
-        #display output from prediction
+        #Display output from prediction
         best=torch.argmax(prediction)
         softmax_obj=torch.nn.Softmax(dim=1)
         softmax=softmax_obj(prediction)
-        print("type of softmax is:",(softmax))
+        #print("type of softmax is:",(softmax))
         tall=chr(best+65)
+        ting=softmax[0][best]
+        #print("ting",ting)
 
-        self.output_text.config(text = str(softmax))
+        #self.output_text.config(text = str(softmax))
+        try:
+            #print(len(self.last_times))
+            self.output_text.config(text = str(tall)+" Med sannsynlighet: "+str(ting.item())+"\n Time since last frame:"+str(now-self.last_time)+"\n Last 10 frame-times:"+str(self.last_times))
+        except:
+            useless_variable=1
+
+        self.ax.cla()
+        self.ax.plot(self.last_times)
+ 
+        self.canvas2.draw()
+        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
             
         if ret:
             frame=cv2.flip(frame,1)
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
 
+        #try:
+        #    self.last_times.append(round(now-self.last_time,3))
+        #except:
+        #    useless_variable=1
+        self.last_time=now
         self.window.after(self.delay, self.update)
 
 
