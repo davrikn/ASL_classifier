@@ -75,8 +75,13 @@ class App:
         self.delay = 50
         #window.update_idletasks()
 
+
         self.fig, self.ax = plt.subplots()
         self.ax.plot(0,0)
+
+        self.canvas2 = FigureCanvasTkAgg(self.fig, self.window)
+        self.canvas2.draw()
+        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
         self.update()
         self.window.mainloop()
@@ -146,13 +151,12 @@ class App:
         im=self.norm_transform(torch.tensor(im).float())
 
         #Make prediction
-        prediction=predict(self.model, im)#abcd,del,...,nothing,...,space
-        print(prediction)
+        prediction=predict(self.model, im)[:-4]#abcd,del,...,nothing,...,space
 
         #Display output from prediction
         best=torch.argmax(prediction)
         softmax_obj=torch.nn.Softmax(dim=1)
-        softmax=softmax_obj(prediction)
+        softmax=softmax_obj(prediction/25)
 
         predicted_prob = softmax[0][best]
         predicted_letter = self.index_map[int(best)]
@@ -160,9 +164,12 @@ class App:
 
         self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
 
+        self.ax.cla()
+        print(softmax)
+        self.ax.bar(self.index_map.values(), softmax[0])
         #If we want to draw a graph...
-        # self.canvas2.draw()
-        # self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+        self.canvas2.draw()
+        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
         if ret:
             #frame=cv2.flip(frame,1)
