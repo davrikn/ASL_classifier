@@ -1,4 +1,5 @@
 from models.dropoutModel import DropoutModel
+from models.GPTModel import CNNGPT
 import tkinter
 import cv2
 import PIL.Image, PIL.ImageTk
@@ -12,12 +13,13 @@ from matplotlib import cm
 import copy
 import torch
 import numpy.ma as ma
-from predictor import predict
+from predictor import predict, load_model
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import keyboard
 from image_datasets import imagepathloader
+from torchvision.transforms import transforms
 
 
 class App:
@@ -30,6 +32,12 @@ class App:
         self.total_imgs_num=0
         self.last_time = 0
         self.keyboard_on_off=False
+        self.index_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'del', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'nothing', 16: 'O', 17: 'P', 18: 'Q', 19: 'R', 20: 'S', 21: 'space', 22: 'T', 23: 'U', 24: 'V', 25: 'W', 26: 'X', 27: 'Y', 28: 'Z'}  
+        self.norm_transform = transforms.Normalize(
+            (132.3501, 127.2977, 131.0638),
+            (55.5031, 62.3274, 64.1869)
+        )
+
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
         greeting.pack()
@@ -58,6 +66,8 @@ class App:
 
         #Initializing our model
         self.model = DropoutModel()
+        load_model(self.model, model_path="./models/saved/model_1.pth")
+
 
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
@@ -131,22 +141,20 @@ class App:
         #Transposing and transforming into a tensor
         im=np.array(im)
         im=im.transpose(2,0,1)
-        im=torch.tensor(im)
+        im=self.norm_transform(torch.tensor(im).float())
 
         #Make prediction
-        prediction=predict(self.model,im)#abcd,del,...,nothing,...,space
-        
+        prediction=predict(self.model, im)#abcd,del,...,nothing,...,space
+        print(prediction)
+
         #Display output from prediction
         best=torch.argmax(prediction)
         softmax_obj=torch.nn.Softmax(dim=1)
         softmax=softmax_obj(prediction)
 
-        this_array=["A","B","C","D","\b","E","F","G","H","I","J","K","L","M","N","","O","P","Q","R","S"," ","T","U","V","W","X","Y","Z"]
-        this_array_2=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]       
-        
-        if(best not in [5,16,22]):
-           predicted_letter=this_array_2[best]
         predicted_prob = softmax[0][best]
+        predicted_letter = self.index_map[int(best)]
+
 
         self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
 
