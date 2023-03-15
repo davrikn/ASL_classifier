@@ -23,7 +23,7 @@ def load_model(model: nn.Module, model_path) -> None:
     model.eval()
 
 
-def predict(model: nn.Module, images: torch.Tensor) -> torch.tensor:
+def predict(model: nn.Module, images: torch.Tensor) -> torch.Tensor:
     """
     Given the path to a trained PyTorch model, and one or more images to
     predict, returns predictions for all images.

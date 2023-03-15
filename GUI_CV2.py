@@ -37,6 +37,8 @@ class App:
             (132.3501, 127.2977, 131.0638),
             (55.5031, 62.3274, 64.1869)
         )
+        self.softmax = torch.nn.Softmax(dim=1)
+
 
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
