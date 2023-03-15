@@ -37,6 +37,8 @@ class App:
             (132.3501, 127.2977, 131.0638),
             (55.5031, 62.3274, 64.1869)
         )
+        self.softmax = torch.nn.Softmax(dim=1)
+
 
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
@@ -144,15 +146,12 @@ class App:
         im=self.norm_transform(torch.tensor(im).float())
 
         #Make prediction
-        prediction=predict(self.model, im)#abcd,del,...,nothing,...,space
-        print(prediction)
-
+        with torch.no_grad():
+            prediction=self.softmax(self.model(im))#abcd,del,...,nothing,...,space
+            
         #Display output from prediction
         best=torch.argmax(prediction)
-        softmax_obj=torch.nn.Softmax(dim=1)
-        softmax=softmax_obj(prediction)
-
-        predicted_prob = softmax[0][best]
+        predicted_prob = prediction[0][best]
         predicted_letter = self.index_map[int(best)]
 
 
