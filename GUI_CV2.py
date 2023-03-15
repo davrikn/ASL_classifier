@@ -1,3 +1,4 @@
+from models.dropoutModel import DropoutModel
 import tkinter
 import cv2
 import PIL.Image, PIL.ImageTk
@@ -9,7 +10,6 @@ import random
 import numpy as np
 from matplotlib import cm
 import copy
-import dropoutModel
 import torch
 import numpy.ma as ma
 from predictor import predict
@@ -29,13 +29,13 @@ root.mainloop()
 """
 
 class App:
+    
     def __init__(self, window, window_title, video_source=0):
         self.window = window
         self.window.title(window_title)
         self.video_source = video_source
         self.i=0
-        self.aaaaaa=0
-        self.last_times=[]
+        self.last_time = 0
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
         greeting.pack()
@@ -63,19 +63,7 @@ class App:
         top.pack(side=TOP)
 
         #Initializing our model
-        self.model=dropoutModel.DropoutModel()
-        #print("conv1",self.model.conv1)
-        #print("size",self.model.size())
-        #top = Frame(self.window)
-        #top.pack(side=TOP)
-        #bottom = Frame(self.window)
-        #b = Button(self.window, text="Enter", width=10, height=2)
-        #c = Button(self.window, text="Clear", width=10, height=2)
-        #self.btn_settings.pack(in_=top, side=LEFT)
-        #self.btn_keyboard.pack(in_=top, side=LEFT)
-        #bottom = Frame(self.window)
-        #top.pack(side=TOP)
-        #bottom.pack(side=BOTTOM, fill=BOTH, expand=True)
+        self.model = DropoutModel()
 
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
@@ -91,6 +79,7 @@ class App:
         self.update()
         self.window.mainloop()
     
+
     def openNewWindow(self):
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
@@ -133,103 +122,50 @@ class App:
             cv2.imwrite("frame-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".jpg", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     def update(self):
-        time_consumption=[]
-        if self.aaaaaa==1:
-            self.time_list=time_consumption
-            print(self.time_list)
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
-        now = time.time()
-        time_consumption.append(time.time())
-        if len(self.last_times) == 20:
-            self.last_times.append(round(now-self.last_time,3))
-            self.last_times.pop(0)
-        else:
-            try:
-                self.last_times.append(round(now-self.last_time,3))
-            except:
-                useless_variable=1
-        time_consumption.append(time.time())
+        time0 = time.time()
         #Converting to PIL
         #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/data/asl_alphabet_train/A/A2.jpg")       #testing on image A2 works.
         im = PIL.Image.fromarray(np.array(frame).astype("uint8"))
-        time_consumption.append(time.time())
         #Cropping to 200x200
         width,height=im.size
         im = im.crop(((width-height)/2, 0, width-((width-height)/2), height))
-        time_consumption.append(time.time())
         im = im.resize((200, 200))
-        time_consumption.append(time.time())
         #im.save("aaaaaaaaaa.jpg")
         #Transposing and transforming into a tensor
         im=np.array(im)
-        time_consumption.append(time.time())
         copied=copy.copy(im)
-        time_consumption.append(time.time())
         copied2=copied.transpose(2,0,1)
-        time_consumption.append(time.time())
         copied2=torch.tensor(copied2)
-        time_consumption.append(time.time())
-
-                                            #Ignore these lines.
-        #Previously had and issue with data types, so I looped through and converted to float. Works without.
-        #for i in range(len(frame3)):
-        #    for j in range(len(frame3[i])):
-        #        for k in range(len(frame3[i][j])):
-        #            #print("k:",k)
-        #            frame3[i][j][k]=float(frame3[i][j][k])
-        #frameq=np.array(frame3,dtype=int)
-        #frameq=np.array(frame3,dtype=float)
 
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         #Make prediction
         #prediction=predict(self.model,"C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/model_dropout_v3.pth",copied2,device=device)
         prediction=predict(self.model,copied2)
-        time_consumption.append(time.time())
         #Display output from prediction
         best=torch.argmax(prediction)
-        time_consumption.append(time.time())
         softmax_obj=torch.nn.Softmax(dim=1)
-        time_consumption.append(time.time())
         softmax=softmax_obj(prediction)
-        time_consumption.append(time.time())
         #print("type of softmax is:",(softmax))
-        tall=chr(best+65)
-        ting=softmax[0][best]
+        predicted_number=chr(best+65)
+        predicted_prob = softmax[0][best]
         #print("ting",ting)
 
         #self.output_text.config(text = str(softmax))
-        try:
-            #print(len(self.last_times))
-            self.output_text.config(text = str(tall)+" Med sannsynlighet: "+str(ting.item())+"\n Time since last frame:"+str(now-self.last_time)+"\n Last 10 frame-times:"+str(self.last_times))
-        except:
-            useless_variable=1
-        time_consumption.append(time.time())
-        self.ax.cla()
-        self.ax.plot(self.last_times)
+        self.output_text.config(text=f"{predicted_number} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
  
-        self.canvas2.draw()
-        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
-        time_consumption.append(time.time())
+        # self.canvas2.draw()
+        # self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
         if ret:
             frame=cv2.flip(frame,1)
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
-        time_consumption.append(time.time())
-        self.aaaaaa+=1
-
-        #Prints time consumption of various steps in code
-        output_thing=[]
-        for i in range(len(time_consumption)):
-            output_thing.append(time_consumption[i]-time_consumption[0])
-        print("time_consumption",output_thing)
-        #try:
-        #    self.last_times.append(round(now-self.last_time,3))
-        #except:
-        #    useless_variable=1
-        self.last_time=now
+        
+        self.last_time = time0
         self.window.after(self.delay, self.update)
+
         
 
 
