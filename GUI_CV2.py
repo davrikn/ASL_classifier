@@ -70,7 +70,7 @@ class App:
 
         #Initializing our model
         self.model = DropoutModel()
-        load_model(self.model, model_path="./models/saved/model_1.pth")
+        load_model(self.model, model_path="./models/saved/model_v1_1.pth")
 
 
         # After it is called once, the update method will be automatically called every delay milliseconds
