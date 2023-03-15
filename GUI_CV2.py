@@ -28,10 +28,9 @@ class App:
         self.window = window
         self.window.title(window_title)
         self.video_source = video_source
-        self.i=0
-        self.total_imgs_num=0
         self.last_time = 0
         self.keyboard_on_off=False
+
         self.index_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'del', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'nothing', 16: 'O', 17: 'P', 18: 'Q', 19: 'R', 20: 'S', 21: 'space', 22: 'T', 23: 'U', 24: 'V', 25: 'W', 26: 'X', 27: 'Y', 28: 'Z'}  
         self.norm_transform = transforms.Normalize(
             (132.3501, 127.2977, 131.0638),
@@ -39,8 +38,6 @@ class App:
         )
         self.softmax = torch.nn.Softmax(dim=1)
         self.frame = 0
-
-
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
         greeting.pack()
@@ -69,7 +66,7 @@ class App:
         self.btn_learn_mode.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         top.pack(side=TOP)
 
-        #Initializing our model
+        # Initializing our model
         self.model = DropoutModel()
         load_model(self.model, model_path="./models/saved/model_conv4_1.pth")
 
@@ -144,34 +141,30 @@ class App:
         width,height=im.size
         im = im.crop(((width-height)/2, 0, width-((width-height)/2), height))
         im = im.resize((192, 192))
-        
-        #im.save("Real_image"+str(self.total_imgs_num)+".jpg")              #if we want to create more training data by using images from webcam
-        
+                
         #Transposing and transforming into a tensor
         im=np.array(im)
         im=im.transpose(2,0,1)
         im=self.norm_transform(torch.tensor(im).float())
 
         #Make prediction
-        prediction=self.model(im)#abcd,del,...,nothing,...,space
-        prediction[0, 15] /= 2
-
+        prediction=self.model(im)/5
+        prediction[0, 15] /= 2 # Reducing probability of nothing
 
         #Display output from prediction
         best=torch.argmax(prediction)
-        softmax_obj=torch.nn.Softmax(dim=1)
-        softmax=softmax_obj(prediction)
-
-        predicted_prob = softmax[0][best]
+        prediction = self.softmax(prediction)
+        predicted_prob = prediction[0][best]
         predicted_letter = self.index_map[int(best)]
 
-
+        # Print
         self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
 
+        # Barplot:
         if self.frame % 5 == 0:
             self.ax.cla()
             with torch.no_grad():
-                self.ax.bar(self.index_map.values(), softmax[0])
+                self.ax.bar(self.index_map.values(), prediction[0])
         #If we want to draw a graph...
         self.canvas2.draw()
         self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
@@ -185,11 +178,8 @@ class App:
             keyboard.write(predicted_letter)
             
         self.last_time = time0
-        self.total_imgs_num+=1
         self.window.after(self.delay, self.update)
         self.frame += 1
-
-        
 
 
 class MyVideoCapture:
