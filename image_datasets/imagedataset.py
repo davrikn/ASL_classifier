@@ -21,7 +21,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, ind: int) -> tuple:
         image_path, label = self.img_paths[ind]
-        image = read_image(image_path)[:,4:-4, 4:-4] # This returns a tensor, ToTensor is therefore not necessary
+        image = read_image(image_path)[4:-4, 4:-4]/255 # This returns a tensor, ToTensor is therefore not necessary
         if self.transform: image = self.transform(image)
         if self.target_transform: label = self.target_transform(label)
         return image, label

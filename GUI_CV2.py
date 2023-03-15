@@ -16,17 +16,9 @@ from predictor import predict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import keyboard
+from image_datasets import imagepathloader
 
-"""
-root = tk.Tk()
-fig, ax = plt.subplots()
- 
-canvas = FigureCanvasTkAgg(fig, root)
-canvas.draw()
-canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
- 
-root.mainloop()
-"""
 
 class App:
     
@@ -35,7 +27,9 @@ class App:
         self.window.title(window_title)
         self.video_source = video_source
         self.i=0
+        self.total_imgs_num=0
         self.last_time = 0
+        self.keyboard_on_off=False
 
         greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
         greeting.pack()
@@ -66,15 +60,11 @@ class App:
         self.model = DropoutModel()
 
         # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 15
+        self.delay = 50
         #window.update_idletasks()
 
         self.fig, self.ax = plt.subplots()
         self.ax.plot(0,0)
- 
-        self.canvas2 = FigureCanvasTkAgg(self.fig, self.window)
-        self.canvas2.draw()
-        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
         self.update()
         self.window.mainloop()
@@ -90,17 +80,7 @@ class App:
         # sets the geometry of toplevel
         a=str(self.vid.width)+"w"+str(self.vid.height)
         newWindow.geometry("600x600")
-        # create the main sections of the layout, 
 
-
-        # and lay them out
-        #top = Frame(self.window)
-        #bottom = Frame(self.window)
-        #top.pack(side=TOP)
-        #bottom.pack(side=BOTTOM, fill=BOTH, expand=True)
-
-        # create the widgets for the top part of the GUI,
-        # and lay them out
         top = Frame(self.window)
         b = Button(self.window, text="Enter", width=10, height=2)
         c = Button(self.window, text="Clear", width=10, height=2)
@@ -111,10 +91,21 @@ class App:
         Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher.").pack()
 
     def keyboard(self):
-        self.keyboard=True
-        print("Activated keyboard")
+
+        """
+        Turns the input from webcam into keyboard outputs.
+        """
+        if not(self.keyboard_on_off):
+            self.keyboard_on_off=True
+            print("Activated keyboard")
+        else:
+            self.keyboard_on_off=False
+            print("Deactivated keyboard")
 
     def snapshot(self):
+        """
+        Take a screenshot
+        """
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
 
@@ -125,45 +116,54 @@ class App:
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
         time0 = time.time()
+        frame=cv2.flip(frame,1)                 #?
         #Converting to PIL
         #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/data/asl_alphabet_train/A/A2.jpg")       #testing on image A2 works.
         im = PIL.Image.fromarray(np.array(frame).astype("uint8"))
-        #Cropping to 200x200
+        
+        #Cropping to 192x192
         width,height=im.size
         im = im.crop(((width-height)/2, 0, width-((width-height)/2), height))
-        im = im.resize((200, 200))
-        #im.save("aaaaaaaaaa.jpg")
+        im = im.resize((192, 192))
+        
+        #im.save("Real_image"+str(self.total_imgs_num)+".jpg")              #if we want to create more training data by using images from webcam
+        
         #Transposing and transforming into a tensor
         im=np.array(im)
-        copied=copy.copy(im)
-        copied2=copied.transpose(2,0,1)
-        copied2=torch.tensor(copied2)
+        im=im.transpose(2,0,1)
+        im=torch.tensor(im)
 
-
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         #Make prediction
-        #prediction=predict(self.model,"C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/model_dropout_v3.pth",copied2,device=device)
-        prediction=predict(self.model,copied2)
+        prediction=predict(self.model,im)#abcd,del,...,nothing,...,space
+        
         #Display output from prediction
         best=torch.argmax(prediction)
         softmax_obj=torch.nn.Softmax(dim=1)
         softmax=softmax_obj(prediction)
-        #print("type of softmax is:",(softmax))
-        predicted_number=chr(best+65)
-        predicted_prob = softmax[0][best]
-        #print("ting",ting)
 
-        #self.output_text.config(text = str(softmax))
-        self.output_text.config(text=f"{predicted_number} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
- 
+        this_array=["A","B","C","D","\b","E","F","G","H","I","J","K","L","M","N","","O","P","Q","R","S"," ","T","U","V","W","X","Y","Z"]
+        this_array_2=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]       
+        
+        if(best not in [5,16,22]):
+           predicted_letter=this_array_2[best]
+        predicted_prob = softmax[0][best]
+
+        self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
+
+        #If we want to draw a graph...
         # self.canvas2.draw()
         # self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+
         if ret:
-            frame=cv2.flip(frame,1)
+            #frame=cv2.flip(frame,1)
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
         
+        if self.keyboard_on_off:
+            keyboard.write(predicted_letter)
+            
         self.last_time = time0
+        self.total_imgs_num+=1
         self.window.after(self.delay, self.update)
 
         
