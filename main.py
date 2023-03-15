@@ -17,9 +17,7 @@ from tests.test_get_emission_probabilities import test_get_emission_probabilitie
 # cv.waitKey(0) & 0xFF
 
 def main():
-    im_data = ImageDataset(transform=BGRemover())
-    plt.imshow(im_data[0][0][2])
-    plt.show()
+    im_data = ImageDataset()
 
 if __name__ == "__main__":
     main()
