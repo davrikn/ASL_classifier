@@ -70,7 +70,7 @@ class App:
 
         #Initializing our model
         self.model = DropoutModel()
-        load_model(self.model, model_path="./models/saved/model_1.pth")
+        load_model(self.model, model_path="./models/saved/model_conv4_1.pth")
 
 
         # After it is called once, the update method will be automatically called every delay milliseconds
@@ -79,7 +79,6 @@ class App:
 
 
         self.fig, self.ax = plt.subplots()
-        self.ax.plot(0,0)
 
         self.canvas2 = FigureCanvasTkAgg(self.fig, self.window)
         self.canvas2.draw()
@@ -153,12 +152,15 @@ class App:
         im=self.norm_transform(torch.tensor(im).float())
 
         #Make prediction
-        prediction=predict(self.model, im)[:-4]#abcd,del,...,nothing,...,space
+        prediction=self.model(im)#abcd,del,...,nothing,...,space
+        prediction[0, 15] /= 2
+        prediction[0, 27] /= 2
+
 
         #Display output from prediction
         best=torch.argmax(prediction)
         softmax_obj=torch.nn.Softmax(dim=1)
-        softmax=softmax_obj(prediction/25)
+        softmax=softmax_obj(prediction/10)
 
         predicted_prob = softmax[0][best]
         predicted_letter = self.index_map[int(best)]
@@ -167,7 +169,6 @@ class App:
         self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
 
         self.ax.cla()
-        print(softmax)
         self.ax.bar(self.index_map.values(), softmax[0])
         #If we want to draw a graph...
         self.canvas2.draw()
