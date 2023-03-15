@@ -51,9 +51,11 @@ class App:
         top.pack(side=TOP)
         self.btn_settings=tkinter.Button(window, text="Settings", width=10, height=2, command=self.openNewWindow)
         self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.keyboard)
+        self.btn_learn_mode=tkinter.Button(window, text="Learn ASL!", width=10, height=2)#Add command
         #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=10, height=2, command=self.snapshot)
         self.btn_settings.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_keyboard.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
+        self.btn_learn_mode.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         top.pack(side=TOP)
 
         #Initializing our model
@@ -116,7 +118,7 @@ class App:
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
         time0 = time.time()
-        frame=cv2.flip(frame,1)                 #?
+        frame=cv2.flip(frame,1)              
         #Converting to PIL
         #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/data/asl_alphabet_train/A/A2.jpg")       #testing on image A2 works.
         im = PIL.Image.fromarray(np.array(frame).astype("uint8"))
@@ -134,7 +136,7 @@ class App:
         im=torch.tensor(im)
 
         #Make prediction
-        prediction=predict(self.model,im)#abcd,del,...,nothing,...,space
+        prediction=predict(self.model,im)
         
         #Display output from prediction
         best=torch.argmax(prediction)
@@ -142,10 +144,8 @@ class App:
         softmax=softmax_obj(prediction)
 
         this_array=["A","B","C","D","\b","E","F","G","H","I","J","K","L","M","N","","O","P","Q","R","S"," ","T","U","V","W","X","Y","Z"]
-        this_array_2=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]       
-        
-        if(best not in [5,16,22]):
-           predicted_letter=this_array_2[best]
+
+        predicted_letter=this_array[best]
         predicted_prob = softmax[0][best]
 
         self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
