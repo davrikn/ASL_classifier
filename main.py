@@ -17,7 +17,8 @@ from tests.test_get_emission_probabilities import test_get_emission_probabilitie
 # cv.waitKey(0) & 0xFF
 
 def main():
-    im_data = ImageDataset()
+    model = DropoutModel()
+    load_model(model, model_path="./models/saved/model_dropout_v1.pth")
 
 if __name__ == "__main__":
     main()
