@@ -1,4 +1,4 @@
-from models.dropoutModel import DropoutModel
+from models.dropoutModel3 import DropoutModel
 from models.GPTModel import CNNGPT
 import tkinter
 import cv2
@@ -22,7 +22,7 @@ from image_datasets import imagepathloader
 from torchvision.transforms import transforms
 
 
-class ALSPredictorApplocation:
+class ALSPredictorApplication:
     
     def __init__(self, window, window_title, video_source=0) -> None:
 
@@ -43,6 +43,7 @@ class ALSPredictorApplocation:
         self.fig, self.ax = plt.subplots()
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
+        self.last_five_images=[]
 
         """ OpenCV """
         # Initializing a window
@@ -77,30 +78,14 @@ class ALSPredictorApplocation:
         self.plt_canvas.draw()
         self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
-        # Initializing our model
-        self.model = DropoutModel()
-        load_model(self.model, model_path="./models/saved/model_conv4_1.pth")
-
-        # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 50
-        #window.update_idletasks()
-
-        self.fig, self.ax = plt.subplots()
-
-        self.canvas2 = FigureCanvasTkAgg(self.fig, self.window)
-        self.canvas2.draw()
-        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
-
         # Initializing main loop
         self.update()
         self.window.mainloop()
     
 
-    def openNewWindow(self): #The settings window
-
     def __openNewWindow(self):
         """
-        Initializes a new window
+        Opens the settings window
         """
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
@@ -121,11 +106,6 @@ class ALSPredictorApplocation:
         # A Label widget to show in toplevel
         Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher.").pack()
 
-        Label(newWindow,text ="Made by \n Øyvind Holm Håheim \n Rimba Oliver Fjeldsø \n David Rise Knotte \n Ole Riddervold \n Mikkel Dahl Slettebø").pack()        
-
-        
-
-    def keyboard(self):
 
     def __keyboard(self):
         """
@@ -193,15 +173,14 @@ class ALSPredictorApplocation:
             distr:           Estimated probability distribution
             predicted_letter
         """
+        
         image = self.norm_transform(torch.tensor(image).float())
         prediction = self.model(image) / reducer
         if reduce_nothing: prediction[0, 15] /= 2
 
-        best_ind = torch.argmax(prediction)
-        distr = self.softmax(prediction)
-        predicted_letter = predicted_letter = self.index_map[int(best_ind)]
 
-        return best_ind, distr, predicted_letter
+        distr = self.softmax(prediction)
+        return distr
     
 
     def __set_output_text(self, best_ind: bool, predicted_letter: str, distr: np.ndarray, time0: float) -> None:
@@ -225,22 +204,6 @@ class ALSPredictorApplocation:
             )
         )
 
-            #Display output from prediction
-            best=torch.argmax(prediction)
-            prediction = self.softmax(prediction)
-            predicted_prob = prediction[0][best]
-            predicted_letter = self.index_map[int(best)]
-
-            if self.keyboard_on_off:
-                keyboard.write(predicted_letter)
-
-        # Print
-        try:
-            self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
-        except:
-            pass
-
-        # Barplot:
     
     def __plot_distr(self, distr) -> None:
         """
@@ -255,24 +218,88 @@ class ALSPredictorApplocation:
         if self.frame % 5 == 0:
             self.ax.cla()
             with torch.no_grad():
-                self.ax.bar(self.index_map.values(), prediction[0])
-        #If we want to draw a graph...
-        self.canvas2.draw()
-        self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+                self.ax.bar(self.index_map.values(), distr[0])
 
-        if ret:
-            #frame=cv2.flip(frame,1)
+        # Drawing barplot on window
+        self.plt_canvas.draw()
+        self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+    
+
+    def __draw_image_on_update(self, has_image: bool, frame) -> None:
+        """
+        Draws the image at the end of the update function.
+
+        Args:
+            has_image          (bool): Whether an image was returned
+            frame                 (?): Raw output from OpenCV to be drawn
+        Returns:
+            None
+        """
+        if has_image:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
-        
-        
-            
-        self.last_time = time0
+                    
         self.window.after(self.delay, self.update)
         self.frame += 1
+        
+
+    def update(self) -> None:
+        """
+        This function is called every time openCV updates the frame.
+        It is responsible for retrieving an image and printing a
+        valid prediction.
+        """
+        time0 = time.time()      
+
+        # Get Image from webcam and do image processing:
+        has_image, frame, image = self.__process_image()
+
+        if(len(self.last_five_images)==5):
+            self.last_five_images.pop(0)
+            self.last_five_images.append(image)
+        elif (len(self.last_five_images)<5):
+            self.last_five_images.append(image)
+        else:
+            print("ERROR!")
+
+        # PyTorch prediction:
+        if(self.frame % 5 == 0):
+            #Make prediction on batch
+            predictions=[]
+            for i in self.last_five_images:
+                distr = self.__predict(image)
+                predictions.append(distr)
+            batch_prediction=0
+            for i in predictions:
+                batch_prediction+=i
+            batch_prediction/=5
+            
+            best_ind = torch.argmax(batch_prediction)
+            predicted_letter = self.index_map[int(best_ind)]
+
+            if self.keyboard_on_off:
+                keyboard.write(predicted_letter)
 
 
-class MyVideoCapture:
+        # Setting output text on window:
+        try:
+            self.__set_output_text(best_ind, predicted_letter, distr, time0)
+        except:
+            pass
+        # Plotting estimated distribution:
+        
+        try:
+            self.__plot_distr(distr)
+        except:
+            pass
+
+        # Drawing image:
+        self.__draw_image_on_update(has_image, frame)
+
+        self.__last_time = time0
+
+
+class VideoCapture:
     def __init__(self, video_source=0):
         # Open the video source
         self.vid = cv2.VideoCapture(video_source)
@@ -299,8 +326,10 @@ class MyVideoCapture:
         if self.vid.isOpened():
             self.vid.release()
 
-# Create a window and pass it to the Application object
-App(tkinter.Tk(), "Tkinter and OpenCV")
+
+def main() -> None:
+    ALSPredictorApplication(tkinter.Tk(), "Tkinter and OpenCV")
+
 
 if __name__ == "__main__":
     main()
