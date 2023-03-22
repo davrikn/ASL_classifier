@@ -30,6 +30,7 @@ class App:
         self.video_source = video_source
         self.last_time = 0
         self.keyboard_on_off=False
+        self.last_five_images=[]
 
         self.index_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'del', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'nothing', 16: 'O', 17: 'P', 18: 'Q', 19: 'R', 20: 'S', 21: 'space', 22: 'T', 23: 'U', 24: 'V', 25: 'W', 26: 'X', 27: 'Y', 28: 'Z'}  
         self.norm_transform = transforms.Normalize(
@@ -129,8 +130,10 @@ class App:
             cv2.imwrite("frame-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".jpg", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     def update(self):
+        
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
+
         time0 = time.time()
         frame=cv2.flip(frame,1)              
         #Converting to PIL
@@ -147,19 +150,39 @@ class App:
         im=im.transpose(2,0,1)
         im=self.norm_transform(torch.tensor(im).float())
 
-        #Make prediction
-        prediction=self.model(im)/5
-        prediction[0, 15] /= 2 # Reducing probability of nothing
+        if(len(self.last_five_images)==5):
+            self.last_five_images.pop(0)
+            self.last_five_images.append(im)
+        elif (len(self.last_five_images)<5):
+            self.last_five_images.append(im)
+        else:
+            print("ERROR!")
 
-        #Display output from prediction
-        best=torch.argmax(prediction)
-        prediction = self.softmax(prediction)
-        predicted_prob = prediction[0][best]
-        predicted_letter = self.index_map[int(best)]
+        if(self.frame % 5 == 0):
+            #Make prediction on batch
+            predictions=[]
+            for i in self.last_five_images:
+                prediction=self.model(im)/5
+                prediction[0, 15] /= 2 # Reducing probability of nothing
+                predictions.append(prediction)
+            print(len(predictions))
+            prediction=0
+            for i in predictions:
+                prediction+=i
+            prediction/=5
+
+            #Display output from prediction
+            best=torch.argmax(prediction)
+            prediction = self.softmax(prediction)
+            predicted_prob = prediction[0][best]
+            predicted_letter = self.index_map[int(best)]
 
         # Print
-        self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
-
+        try:
+            self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
+        except:
+            pass
+        
         # Barplot:
         if self.frame % 5 == 0:
             self.ax.cla()
