@@ -22,50 +22,60 @@ from image_datasets import imagepathloader
 from torchvision.transforms import transforms
 
 
-class App:
+class ALSPredictorApplocation:
     
-    def __init__(self, window, window_title, video_source=0):
-        self.window = window
-        self.window.title(window_title)
-        self.video_source = video_source
-        self.last_time = 0
-        self.keyboard_on_off=False
-        self.last_five_images=[]
+    def __init__(self, window, window_title, video_source=0) -> None:
 
-        self.index_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'del', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'nothing', 16: 'O', 17: 'P', 18: 'Q', 19: 'R', 20: 'S', 21: 'space', 22: 'T', 23: 'U', 24: 'V', 25: 'W', 26: 'X', 27: 'Y', 28: 'Z'}  
+        """ PyTorch """
         self.norm_transform = transforms.Normalize(
             (132.3501, 127.2977, 131.0638),
             (55.5031, 62.3274, 64.1869)
         )
         self.softmax = torch.nn.Softmax(dim=1)
+        # Initializing our model
+        self.model = DropoutModel()
+        load_model(self.model, model_path="./models/saved/model_v3_1.pth")
+
+        """ Other """
+        self.__last_time = 0
+        self.index_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'del', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'nothing', 16: 'O', 17: 'P', 18: 'Q', 19: 'R', 20: 'S', 21: 'space', 22: 'T', 23: 'U', 24: 'V', 25: 'W', 26: 'X', 27: 'Y', 28: 'Z'}  
         self.frame = 0
+        self.fig, self.ax = plt.subplots()
+        # After it is called once, the update method will be automatically called every delay milliseconds
+        self.delay = 50
 
-        greeting = tkinter.Label(text="ASL Sign Language Detection!",font=("Arial", 25))
-        greeting.pack()
-
+        """ OpenCV """
+        # Initializing a window
+        self.window = window
+        self.window.title(window_title)
+        self.video_source = video_source
+        self.keyboard_on_off = False
+        # Display predictions
+        self.my_output_text = ""
+        self.output_text = tkinter.Label(text=self.my_output_text)
+        self.output_text.pack()
         # Open video source (by default this will try to open the computer webcam)
-        self.vid = MyVideoCapture(self.video_source)
-
+        self.vid = VideoCapture(self.video_source)
+        greeting = tkinter.Label(text="ASL Sign Language Detection", font=("Arial", 25))
+        greeting.pack()
         # Create a canvas that can fit the above video source size
         self.canvas = tkinter.Canvas(window, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
-
-        #Display predictions
-        self.my_output_text=""
-        self.output_text = tkinter.Label(text=self.my_output_text)
-        self.output_text.pack()
-
         # Buttons for settings and keyboard
         top = Frame(self.window)
         top.pack(side=TOP)
-        self.btn_settings=tkinter.Button(window, text="Settings", width=10, height=2, command=self.openNewWindow)
-        self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.keyboard)
+        self.btn_settings=tkinter.Button(window, text="Settings", width=10, height=2, command=self.__openNewWindow)
+        self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.__keyboard)
         self.btn_learn_mode=tkinter.Button(window, text="Learn ASL!", width=10, height=2)#Add command
         #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=10, height=2, command=self.snapshot)
         self.btn_settings.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_keyboard.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_learn_mode.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         top.pack(side=TOP)
+        # Second canvas for plotting
+        self.plt_canvas = FigureCanvasTkAgg(self.fig, self.window)
+        self.plt_canvas.draw()
+        self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
         # Initializing our model
         self.model = DropoutModel()
@@ -81,12 +91,17 @@ class App:
         self.canvas2.draw()
         self.canvas2.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
 
+        # Initializing main loop
         self.update()
         self.window.mainloop()
     
 
     def openNewWindow(self): #The settings window
 
+    def __openNewWindow(self):
+        """
+        Initializes a new window
+        """
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
     
@@ -112,6 +127,7 @@ class App:
 
     def keyboard(self):
 
+    def __keyboard(self):
         """
         Turns the input from webcam into keyboard outputs.
         """
@@ -121,6 +137,7 @@ class App:
         else:
             self.keyboard_on_off=False
             print("Deactivated keyboard")
+
 
     def snapshot(self):
         """
@@ -132,47 +149,81 @@ class App:
         if ret:
             cv2.imwrite("frame-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".jpg", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-    def update(self):
-        
-        # Get a frame from the video source
-        ret, frame = self.vid.get_frame()
 
-        time0 = time.time()
-        frame=cv2.flip(frame,1)              
-        #Converting to PIL
-        #frame=PIL.Image.open("C:/Users/Øyvind/Desktop/ASL_sign_language/ASL_classifier/data/asl_alphabet_train/A/A2.jpg")       #testing on image A2 works.
-        im = PIL.Image.fromarray(np.array(frame).astype("uint8"))
+    def __process_image(self) -> tuple:
+        """
+        Gets an image from OpenCV feed and returns it as a 3D
+        numpy array.
         
-        #Cropping to 192x192
-        width,height=im.size
-        im = im.crop(((width-height)/2, 0, width-((width-height)/2), height))
-        im = im.resize((192, 192))
+        Args:
+            None
+        Returns:
+            has_image: boolean of whether an image was returned
+            frame:     Raw output from OpenCV
+            image:     3D numpy array of image
+        """
+        # Retrieving image
+        has_image, frame = self.vid.get_frame()
+        frame = cv2.flip(frame, 1)              
+        image = PIL.Image.fromarray(np.array(frame).astype("uint8"))
+        
+        # Cropping and resizing
+        width, height = image.size
+        image = image.crop(((width-height)/2, 0, width-((width-height)/2), height))
+        image = image.resize((192, 192))
                 
-        #Transposing and transforming into a tensor
-        im=np.array(im)
-        im=im.transpose(2,0,1)
-        im=self.norm_transform(torch.tensor(im).float())
+        # Transposing and transforming into a tensor
+        image = np.array(image)
+        image = image.transpose(2,0,1)
 
-        if(len(self.last_five_images)==5):
-            self.last_five_images.pop(0)
-            self.last_five_images.append(im)
-        elif (len(self.last_five_images)<5):
-            self.last_five_images.append(im)
-        else:
-            print("ERROR!")
+        return has_image, frame, image
 
-        if(self.frame % 5 == 0):
-            #Make prediction on batch
-            predictions=[]
-            for i in self.last_five_images:
-                prediction=self.model(im)/5
-                prediction[0, 15] /= 2 # Reducing probability of nothing
-                predictions.append(prediction)
-            print(len(predictions))
-            prediction=0
-            for i in predictions:
-                prediction+=i
-            prediction/=5
+
+    def __predict(self, image: np.ndarray, reducer: float = 5.0, reduce_nothing: bool = False) -> tuple:
+        """
+        Given an image in the form of a numpy array, uses the class model
+        to make a prediction with PyTorch.
+
+        Args:
+            image   (NumPy array): Source image
+            reducer       (float): Scaler for raw output, making distribution flatter
+            reduce_nothing (bool): Whether to make the prediction "nothing" less likely
+        Returns:
+            best_ind:        The index of the most likely prediction
+            distr:           Estimated probability distribution
+            predicted_letter
+        """
+        image = self.norm_transform(torch.tensor(image).float())
+        prediction = self.model(image) / reducer
+        if reduce_nothing: prediction[0, 15] /= 2
+
+        best_ind = torch.argmax(prediction)
+        distr = self.softmax(prediction)
+        predicted_letter = predicted_letter = self.index_map[int(best_ind)]
+
+        return best_ind, distr, predicted_letter
+    
+
+    def __set_output_text(self, best_ind: bool, predicted_letter: str, distr: np.ndarray, time0: float) -> None:
+        """
+        Sets the output text in the window based on this frames predictions.
+
+        Args:
+            best_ind            (int): The index of the most likely prediction
+            distr       (NumPy array): Estimated probability distribution
+            predicted_letter (string): String of actual predicted letter
+            time0             (float): Time at start of frame
+        Returns:
+            None
+        """
+        predicted_prob = distr[0][best_ind]
+        self.output_text.config(
+            text="{pred} with probability {prob}. fps: {fps}".format(
+                pred = predicted_letter,
+                prob = np.round(predicted_prob.item(), 3),
+                fps  = np.round(1/(time0 - self.__last_time))
+            )
+        )
 
             #Display output from prediction
             best=torch.argmax(prediction)
@@ -190,6 +241,17 @@ class App:
             pass
 
         # Barplot:
+    
+    def __plot_distr(self, distr) -> None:
+        """
+        Plots barplot of the distribution every fifth frame.
+
+        Args:
+            distr (NumPy array): Distribution to plot
+        Returns:
+            None
+        """
+        # Plotting barplot every fifth frame:
         if self.frame % 5 == 0:
             self.ax.cla()
             with torch.no_grad():
@@ -239,3 +301,6 @@ class MyVideoCapture:
 
 # Create a window and pass it to the Application object
 App(tkinter.Tk(), "Tkinter and OpenCV")
+
+if __name__ == "__main__":
+    main()
