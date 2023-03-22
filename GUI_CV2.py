@@ -22,7 +22,7 @@ from image_datasets import imagepathloader
 from torchvision.transforms import transforms
 
 
-class ALSPredictorApplocation:
+class ALSPredictorApplication:
     
     def __init__(self, window, window_title, video_source=0) -> None:
 
@@ -43,6 +43,7 @@ class ALSPredictorApplocation:
         self.fig, self.ax = plt.subplots()
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
+        self.last_five_images=[]
 
         """ OpenCV """
         # Initializing a window
@@ -84,7 +85,7 @@ class ALSPredictorApplocation:
 
     def __openNewWindow(self):
         """
-        Initializes a new window
+        Opens the settings window
         """
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
@@ -172,15 +173,14 @@ class ALSPredictorApplocation:
             distr:           Estimated probability distribution
             predicted_letter
         """
+        
         image = self.norm_transform(torch.tensor(image).float())
         prediction = self.model(image) / reducer
         if reduce_nothing: prediction[0, 15] /= 2
 
-        best_ind = torch.argmax(prediction)
-        distr = self.softmax(prediction)
-        predicted_letter = predicted_letter = self.index_map[int(best_ind)]
 
-        return best_ind, distr, predicted_letter
+        distr = self.softmax(prediction)
+        return distr
     
 
     def __set_output_text(self, best_ind: bool, predicted_letter: str, distr: np.ndarray, time0: float) -> None:
@@ -225,25 +225,20 @@ class ALSPredictorApplocation:
         self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
     
 
-    def __draw_image_on_update(self, has_image: bool, frame, predicted_letter: str) -> None:
+    def __draw_image_on_update(self, has_image: bool, frame) -> None:
         """
         Draws the image at the end of the update function.
-        Also handles keyboard functionality
 
         Args:
             has_image          (bool): Whether an image was returned
             frame                 (?): Raw output from OpenCV to be drawn
-            predicted_letter (string)
         Returns:
             None
         """
         if has_image:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
-        
-        if self.keyboard_on_off:
-            keyboard.write(predicted_letter)
-            
+                    
         self.window.after(self.delay, self.update)
         self.frame += 1
         
@@ -256,20 +251,50 @@ class ALSPredictorApplocation:
         """
         time0 = time.time()      
 
-        # Image processing:
+        # Get Image from webcam and do image processing:
         has_image, frame, image = self.__process_image()
 
+        if(len(self.last_five_images)==5):
+            self.last_five_images.pop(0)
+            self.last_five_images.append(image)
+        elif (len(self.last_five_images)<5):
+            self.last_five_images.append(image)
+        else:
+            print("ERROR!")
+
         # PyTorch prediction:
-        best_ind, distr, predicted_letter = self.__predict(image)
+        if(self.frame % 5 == 0):
+            #Make prediction on batch
+            predictions=[]
+            for i in self.last_five_images:
+                distr = self.__predict(image)
+                predictions.append(distr)
+            batch_prediction=0
+            for i in predictions:
+                batch_prediction+=i
+            batch_prediction/=5
+            
+            best_ind = torch.argmax(batch_prediction)
+            predicted_letter = self.index_map[int(best_ind)]
+
+            if self.keyboard_on_off:
+                keyboard.write(predicted_letter)
+
 
         # Setting output text on window:
-        self.__set_output_text(best_ind, predicted_letter, distr, time0)
-
+        try:
+            self.__set_output_text(best_ind, predicted_letter, distr, time0)
+        except:
+            pass
         # Plotting estimated distribution:
-        self.__plot_distr(distr)
+        
+        try:
+            self.__plot_distr(distr)
+        except:
+            pass
 
         # Drawing image:
-        self.__draw_image_on_update(has_image, frame, predicted_letter)
+        self.__draw_image_on_update(has_image, frame)
 
         self.__last_time = time0
 
@@ -303,7 +328,7 @@ class VideoCapture:
 
 
 def main() -> None:
-    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV")
+    ALSPredictorApplication(tkinter.Tk(), "Tkinter and OpenCV")
 
 
 if __name__ == "__main__":
