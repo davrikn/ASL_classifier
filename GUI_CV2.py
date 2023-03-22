@@ -71,11 +71,9 @@ class App:
         self.model = DropoutModel()
         load_model(self.model, model_path="./models/saved/model_conv4_1.pth")
 
-
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
         #window.update_idletasks()
-
 
         self.fig, self.ax = plt.subplots()
 
@@ -87,7 +85,8 @@ class App:
         self.window.mainloop()
     
 
-    def openNewWindow(self):
+    def openNewWindow(self): #The settings window
+
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
     
@@ -106,6 +105,10 @@ class App:
     
         # A Label widget to show in toplevel
         Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher.").pack()
+
+        Label(newWindow,text ="Made by \n Øyvind Holm Håheim \n Rimba Oliver Fjeldsø \n David Rise Knotte \n Ole Riddervold \n Mikkel Dahl Slettebø").pack()        
+
+        
 
     def keyboard(self):
 
@@ -177,12 +180,15 @@ class App:
             predicted_prob = prediction[0][best]
             predicted_letter = self.index_map[int(best)]
 
+            if self.keyboard_on_off:
+                keyboard.write(predicted_letter)
+
         # Print
         try:
             self.output_text.config(text=f"{predicted_letter} with probability {np.round(predicted_prob.item(), 3)}. fps: {np.round(1/(time0 - self.last_time))}")
         except:
             pass
-        
+
         # Barplot:
         if self.frame % 5 == 0:
             self.ax.cla()
@@ -197,8 +203,7 @@ class App:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
         
-        if self.keyboard_on_off:
-            keyboard.write(predicted_letter)
+        
             
         self.last_time = time0
         self.window.after(self.delay, self.update)
