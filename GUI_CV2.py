@@ -13,7 +13,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import keyboard
 from torchvision.transforms import transforms
-from HMM.uniform_predict import uniform_predict
+from HMM.uniform_predict import uniform_predict, semi_uniform_predict
+from utility.torch_queue import TorchQueue
 
 
 class ALSPredictorApplocation:
@@ -30,7 +31,7 @@ class ALSPredictorApplocation:
         self.model = DropoutModel()
         load_model(self.model, model_path="./models/saved/model_v3_1.pth")
         self.cache_size = cache_size
-        self.distr_cache = torch.zeros((cache_size, 29))
+        self.distr_cache = TorchQueue(torch.ones((cache_size, 29))/29)
         self.last_distr_pred = torch.ones(29)/29
 
         """ Other """
@@ -155,25 +156,36 @@ class ALSPredictorApplocation:
         return has_image, frame, image
 
 
-    def __predict(self, image: np.ndarray, reducer: float = 5.0, reduce_nothing: bool = False) -> tuple:
+    def __predict(self, image: np.ndarray, reducer: float = 5.0, reduce_nothing: bool = False) -> None:
         """
         Given an image in the form of a numpy array, uses the class model
-        to make a prediction with PyTorch.
+        to make a prediction with PyTorch and adds it to the cache.
 
         Args:
             image   (NumPy array): Source image
             reducer       (float): Scaler for raw output, making distribution flatter
             reduce_nothing (bool): Whether to make the prediction "nothing" less likely
         Returns:
-            best_ind:        The index of the most likely prediction
-            distr:           Estimated probability distribution
-            predicted_letter
+            None
         """
         image = self.norm_transform(torch.tensor(image).float())
         prediction = self.model(image) / reducer
         if reduce_nothing: prediction[0, 15] /= 2
 
-        self.distr_cache[self.frame % self.cache_size] = self.softmax(prediction)
+        self.distr_cache.insert(self.softmax(prediction)[0])
+    
+
+    def __predict_from_cache(self, func = None) -> torch.Tensor:
+        """
+        Makes a prediction based on the values in the cache.
+        Args:
+            func: Function to use for prediction.
+                  If None, returns the last value
+        """
+        if func is None:
+            return self.distr_cache[0]
+        else:
+            return func(self.distr_cache)
     
 
     def __set_output_text(self, best_ind: bool, predicted_letter: str, distr: np.ndarray, time0: float) -> None:
@@ -250,13 +262,14 @@ class ALSPredictorApplocation:
         # Image processing:
         has_image, frame, image = self.__process_image()
 
-        # PyTorch prediction:
-        self.__predict(image)
+        # PyTorch/HMM prediction:
+        with torch.no_grad():
 
-        if self.frame % self.cache_size == self.cache_size-1:
-            distr = torch.tensor(uniform_predict(
-                self.distr_cache.detach().numpy(),
-                self.last_distr_pred.detach().numpy()
+            self.__predict(image)
+
+            distr = torch.tensor(semi_uniform_predict(
+                self.distr_cache[None].numpy(),
+                self.last_distr_pred.numpy()
             ))
 
             self.last_distr_pred = distr
