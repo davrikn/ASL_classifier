@@ -1,0 +1,9 @@
+opencv-python~=4.5.5.62
+Pillow~=9.3.0
+numpy~=1.23.5
+torch~=1.13.1+cu117
+matplotlib~=3.6.3
+torchvision~=0.14.1+cu117
+rembg~=2.0.30
+Flask~=2.2.3
+tqdm~=4.64.1
