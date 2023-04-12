@@ -1,30 +1,25 @@
 from models.dropoutModel3 import DropoutModel
-from models.GPTModel import CNNGPT
 import tkinter
 import cv2
 import PIL.Image, PIL.ImageTk
-from PIL import ImageOps
 import time
 #from PIL import Image
 from tkinter import *
-import random
 import numpy as np
-from matplotlib import cm
-import copy
 import torch
 import numpy.ma as ma
-from predictor import predict, load_model
+from predictor import load_model
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import keyboard
-from image_datasets import imagepathloader
 from torchvision.transforms import transforms
+from HMM.uniform_predict import uniform_predict, semi_uniform_predict
+from utility.torch_queue import TorchQueue
 
 
-class ALSPredictorApplication:
+class ALSPredictorApplocation:
     
-    def __init__(self, window, window_title, video_source=0) -> None:
+    def __init__(self, window, window_title, cache_size=10, video_source=0) -> None:
 
         """ PyTorch """
         self.norm_transform = transforms.Normalize(
@@ -35,6 +30,9 @@ class ALSPredictorApplication:
         # Initializing our model
         self.model = DropoutModel()
         load_model(self.model, model_path="./models/saved/model_v3_1.pth")
+        self.cache_size = cache_size
+        self.distr_cache = TorchQueue(torch.ones((cache_size, 29))/29)
+        self.last_distr_pred = torch.ones(29)/29
 
         """ Other """
         self.__last_time = 0
@@ -43,7 +41,6 @@ class ALSPredictorApplication:
         self.fig, self.ax = plt.subplots()
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
-        self.last_five_images=[]
 
         """ OpenCV """
         # Initializing a window
@@ -87,7 +84,7 @@ class ALSPredictorApplication:
 
     def __openNewWindow(self):
         """
-        Opens the settings window
+        Initializes a new window
         """
         # Toplevel object which will be treated as a new window
         newWindow = Toplevel(self.window)
@@ -163,28 +160,36 @@ class ALSPredictorApplication:
         return has_image, frame, image
 
 
-    def __predict(self, image: np.ndarray, reducer: float = 5.0, reduce_nothing: bool = False) -> tuple:
+    def __predict(self, image: np.ndarray, reducer: float = 5.0, reduce_nothing: bool = False) -> None:
         """
         Given an image in the form of a numpy array, uses the class model
-        to make a prediction with PyTorch.
+        to make a prediction with PyTorch and adds it to the cache.
 
         Args:
             image   (NumPy array): Source image
             reducer       (float): Scaler for raw output, making distribution flatter
             reduce_nothing (bool): Whether to make the prediction "nothing" less likely
         Returns:
-            best_ind:        The index of the most likely prediction
-            distr:           Estimated probability distribution
-            predicted_letter
+            None
         """
-        
         image = self.norm_transform(torch.tensor(image).float())
         prediction = self.model(image) / reducer
         if reduce_nothing: prediction[0, 15] /= 2
 
+        self.distr_cache.insert(self.softmax(prediction)[0])
+    
 
-        distr = self.softmax(prediction)
-        return distr
+    def __predict_from_cache(self, func = None) -> torch.Tensor:
+        """
+        Makes a prediction based on the values in the cache.
+        Args:
+            func: Function to use for prediction.
+                  If None, returns the last value
+        """
+        if func is None:
+            return self.distr_cache[0]
+        else:
+            return func(self.distr_cache)
     
 
     def __set_output_text(self, best_ind: bool, predicted_letter: str, distr: np.ndarray, time0: float) -> None:
@@ -199,7 +204,7 @@ class ALSPredictorApplication:
         Returns:
             None
         """
-        predicted_prob = distr[0][best_ind]
+        predicted_prob = distr[best_ind]
         self.output_text.config(
             text="{pred} with probability {prob}. fps: {fps}".format(
                 pred = predicted_letter,
@@ -219,10 +224,10 @@ class ALSPredictorApplication:
             None
         """
         # Plotting barplot every fifth frame:
-        if self.frame % 5 == 0:
+        if self.frame % self.cache_size == self.cache_size-1:
             self.ax.cla()
             with torch.no_grad():
-                self.ax.bar(self.index_map.values(), distr[0])
+                self.ax.bar(self.index_map.values(), distr)
 
         # Drawing barplot on window
         self.plt_canvas.draw()
@@ -232,10 +237,12 @@ class ALSPredictorApplication:
     def __draw_image_on_update(self, has_image: bool, frame) -> None:
         """
         Draws the image at the end of the update function.
+        Also handles keyboard functionality
 
         Args:
             has_image          (bool): Whether an image was returned
             frame                 (?): Raw output from OpenCV to be drawn
+            predicted_letter (string)
         Returns:
             None
         """
@@ -256,35 +263,28 @@ class ALSPredictorApplication:
         It is responsible for retrieving an image and printing a
         valid prediction.
         """
-        time0 = time.time()      
+        time0 = time.time()
+        if not 'distr' in locals(): distr = self.last_distr_pred
 
-        # Get Image from webcam and do image processing:
+        # Image processing:
         has_image, frame, image = self.__process_image()
 
-        if(len(self.last_five_images)==5):
-            self.last_five_images.pop(0)
-            self.last_five_images.append(image)
-        elif (len(self.last_five_images)<5):
-            self.last_five_images.append(image)
-        else:
-            print("ERROR!")
+        # PyTorch/HMM prediction:
+        with torch.no_grad():
 
-        # PyTorch prediction:
-        if(self.frame % 5 == 0):
-            #Make prediction on batch
-            predictions=[]
-            for i in self.last_five_images:
-                distr = self.__predict(image)
-                predictions.append(distr)
-            batch_prediction=0
-            for i in predictions:
-                batch_prediction+=i
-            batch_prediction/=5
-            
-            best_ind = torch.argmax(batch_prediction)
+            self.__predict(image)
+
+            distr = torch.tensor(semi_uniform_predict(
+                self.distr_cache[None].numpy(),
+                self.last_distr_pred.numpy()
+            ))
+
+            self.last_distr_pred = distr
+            print(self.last_distr_pred)
+            best_ind = torch.argmax(distr)
             predicted_letter = self.index_map[int(best_ind)]
 
-            if self.keyboard_on_off and float(batch_prediction[0][best_ind])>0.4:#Only writes a number if its probability is larger than 0.4.
+            if self.keyboard_on_off and float(self.last_distr_pred[best_ind])>0.4:#Only writes a number if its probability is larger than 0.4.
                 if (predicted_letter!="nothing") and (predicted_letter !="del") and(predicted_letter!="space"):
                     keyboard.write(predicted_letter)
                 if predicted_letter=="del":
@@ -298,12 +298,9 @@ class ALSPredictorApplication:
             self.__set_output_text(best_ind, predicted_letter, distr, time0)
         except:
             pass
+
         # Plotting estimated distribution:
-        
-        try:
-            self.__plot_distr(distr)
-        except:
-            pass
+        self.__plot_distr(distr)
 
         # Drawing image:
         self.__draw_image_on_update(has_image, frame)
@@ -340,7 +337,7 @@ class VideoCapture:
 
 
 def main() -> None:
-    ALSPredictorApplication(tkinter.Tk(), "Tkinter and OpenCV")
+    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5)
 
 
 if __name__ == "__main__":

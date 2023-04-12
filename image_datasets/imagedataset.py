@@ -1,6 +1,8 @@
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 from image_datasets.imagepathloader import ImagePathLoader
+import torch
+import numpy as np
 
 
 class ImageDataset(Dataset):
@@ -25,3 +27,20 @@ class ImageDataset(Dataset):
         if self.transform: image = self.transform(image)
         if self.target_transform: label = self.target_transform(label)
         return image, label
+
+
+class CameraImageDataset(Dataset):
+
+    def __init__(self, images: list[np.ndarray], transform=None) -> None:
+        self.images = torch.tensor(images).float()
+        self.transform = transform                  # Transform of images
+    
+
+    def __len__(self):
+        return len(self.images)
+    
+    
+    def __getitem__(self, ind: int) -> torch.Tensor:
+        image = self.images[ind]
+        if self.transform: image = self.transform(image)
+        return image
