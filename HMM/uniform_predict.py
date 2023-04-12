@@ -26,12 +26,12 @@ def generate_semi_uniform_transition_matrix(beta: float = 0.90, m: int = 29) -> 
 
 """ Matrix generation"""
 
-with open("emission.txt", 'rb') as f:
+with open("emission_onenorm.txt", 'rb') as f:
     EMISSION = pickle.load(f)
 
 UNIFORM_TRANSITION = np.ones((29, 29))/29
 
-SEMI_UNIFORM_TRANSITION = generate_semi_uniform_transition_matrix()
+SEMI_UNIFORM_TRANSITION = generate_semi_uniform_transition_matrix(beta=0.7)
 
 
 

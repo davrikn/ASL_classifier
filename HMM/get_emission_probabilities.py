@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from scipy.special import softmax
 
 
 def get_emission_probabilities(model: nn.Module, testloader: DataLoader) -> None:
@@ -24,6 +25,8 @@ def get_emission_probabilities(model: nn.Module, testloader: DataLoader) -> None
 
     # TODO: Figure out how to retrieve m from model or trainloader
     m = 29
+    N = len(testloader.dataset)
+    batch_size = testloader.batch_size
 
     # Normalizing function
     def norm(data, axis=0):
@@ -41,19 +44,29 @@ def get_emission_probabilities(model: nn.Module, testloader: DataLoader) -> None
             data_norm = np.linalg.norm(data, ord=1)
             return data/data_norm
 
-    with torch.no_grad():
-        for images, labels in testloader:
-            images = images.float().to(device)
-            labels = labels.to(device).numpy()
-            pred = norm((model(images)).numpy(), axis=1)
-    
-    # Emission probabilities:
-    emissions = np.ones((m, m))/m # Initialized as discrete uniform distribution.
+    # norm = softmax
 
-    for x in range(m):
-        if np.any(labels == x):
-            emissions[x] = norm(
-                pred[labels == x, :].mean(axis=0)
-            )
+    def average_predictions(pred, labs):
+        ems = np.ones((m, m))/m
+        for x in range(m):
+            if np.any(labs == x):
+                ems[x] = norm(
+                    pred[labs == x, :].mean(axis=0),
+                    axis=0
+                )
+        
+        return ems
+
+    # Prediction:
+    emissions = np.zeros((m, m))/m # Initialized as discrete uniform distribution.
+
+    with torch.no_grad():
+        for i, (images, labels) in enumerate(testloader):
+            images = images.float().to(device)
+            labs = labels.to(device).numpy()
+            pred = norm((model(images)).numpy(), axis=1)
+            emissions = (i/(i+1))*emissions + (1/(i+1))*average_predictions(pred, labs)
+            print(f"Emission probability calculation progress: {round(100*(i+1)*batch_size/N)} %")
+            print(emissions.shape)
         
     return emissions

@@ -1,9 +1,8 @@
-from models.dropoutModel3 import DropoutModel
+from models.dropoutModel4 import DropoutModel
 import tkinter
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
-#from PIL import Image
 from tkinter import *
 import numpy as np
 import torch
@@ -19,7 +18,7 @@ from utility.torch_queue import TorchQueue
 
 class ALSPredictorApplocation:
     
-    def __init__(self, window, window_title, cache_size=10, video_source=0) -> None:
+    def __init__(self, window, window_title, save_loc = None, cache_size=10, video_source=0) -> None:
 
         """ PyTorch """
         self.norm_transform = transforms.Normalize(
@@ -29,7 +28,7 @@ class ALSPredictorApplocation:
         self.softmax = torch.nn.Softmax(dim=1)
         # Initializing our model
         self.model = DropoutModel()
-        load_model(self.model, model_path="./models/saved/model_v3_1.pth")
+        load_model(self.model, model_path="./models/saved/model_v4_4.pth")
         self.cache_size = cache_size
         self.distr_cache = TorchQueue(torch.ones((cache_size, 29))/29)
         self.last_distr_pred = torch.ones(29)/29
@@ -41,6 +40,7 @@ class ALSPredictorApplocation:
         self.fig, self.ax = plt.subplots()
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
+        self.save_loc = save_loc
 
         """ OpenCV """
         # Initializing a window
@@ -285,6 +285,10 @@ class ALSPredictorApplocation:
         # Drawing image:
         self.__draw_image_on_update(has_image, frame)
 
+        # Saving image:
+        if self.save_loc is not None and has_image:
+            cv2.imwrite(self.save_loc + f"{lab}%d.jpg" % self.frame, frame)
+
         self.__last_time = time0
 
 
@@ -316,8 +320,9 @@ class VideoCapture:
             self.vid.release()
 
 
+lab = "E"
 def main() -> None:
-    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5)
+    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, save_loc=f"data/generated/{lab}/")
 
 
 if __name__ == "__main__":

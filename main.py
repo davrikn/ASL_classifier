@@ -13,7 +13,7 @@ from image_datasets.imagedataset import ImageDataset
 from models.dropoutModel import DropoutModel
 from predictor import predict, load_model
 
-from tests.test_get_emission_probabilities import test_get_emission_probabilities
+from tests.test_get_emission_probabilities import test_get_emission_probabilities, test_get_emission_probabilities_alt
 from tests.test_TorchQueue import test_TorchQueue
 
 
@@ -21,7 +21,9 @@ from tests.test_TorchQueue import test_TorchQueue
 # cv.waitKey(0) & 0xFF
 
 def main():
-    test_TorchQueue()
+    # test_TorchQueue()
+    test_get_emission_probabilities_alt()
+    plt.show()
 
 if __name__ == "__main__":
     main()
