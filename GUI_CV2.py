@@ -51,6 +51,7 @@ class ALSPredictorApplication:
         self.window.title(window_title)
         self.video_source = video_source
         self.keyboard_on_off = False
+        self.video_on=True
         # Display predictions
         self.my_output_text = ""
         self.output_text = tkinter.Label(text=self.my_output_text)
@@ -65,9 +66,10 @@ class ALSPredictorApplication:
         # Buttons for settings and keyboard
         top = Frame(self.window)
         top.pack(side=TOP)
-        self.btn_settings=tkinter.Button(window, text="Settings", width=10, height=2, command=self.__openNewWindow)
+        self.btn_settings=tkinter.Button(window, text="Credits", width=10, height=2, command=self.__openNewWindow)
         self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.__keyboard)
         self.btn_learn_mode=tkinter.Button(window, text="Learn ASL!", width=10, height=2)#Add command
+        self.btn_learn_mode=tkinter.Button(window, text="Toggle show video", width=10, height=2, command=self.__toggleVideo)
         #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=10, height=2, command=self.snapshot)
         self.btn_settings.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_keyboard.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
@@ -104,7 +106,7 @@ class ALSPredictorApplication:
         c.pack(in_=top, side=RIGHT)
     
         # A Label widget to show in toplevel
-        Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher.").pack()
+        Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher. \n\n\n\n\n\n Made by:David\nMikkel\nOle\nRimba\nØyvind",font=("Arial", 25)).pack()
 
 
     def __keyboard(self):
@@ -118,6 +120,8 @@ class ALSPredictorApplication:
             self.keyboard_on_off=False
             print("Deactivated keyboard")
 
+    def __toggleVideo(self):
+        self.video_on=not(self.video_on)
 
     def snapshot(self):
         """
@@ -146,6 +150,7 @@ class ALSPredictorApplication:
         has_image, frame = self.vid.get_frame()
         frame = cv2.flip(frame, 1)              
         image = PIL.Image.fromarray(np.array(frame).astype("uint8"))
+        #image.save("webcam_images/A/A"+str(self.frame)+".jpg")
         
         # Cropping and resizing
         width, height = image.size
@@ -235,7 +240,7 @@ class ALSPredictorApplication:
         Returns:
             None
         """
-        if has_image:
+        if has_image and self.video_on:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
                     
