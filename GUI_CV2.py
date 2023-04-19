@@ -14,9 +14,10 @@ import keyboard
 from torchvision.transforms import transforms
 from HMM.uniform_predict import uniform_predict, semi_uniform_predict
 from utility.torch_queue import TorchQueue
+import copy
 
 
-class ALSPredictorApplocation:
+class ASLPredictorApplication:
     
     def __init__(self, window, window_title, save_loc = None, cache_size=10, video_source=0, HMM=True) -> None:
 
@@ -51,6 +52,8 @@ class ALSPredictorApplocation:
         self.keyboard_on_off = False
         self.video_on=True
         self.graph_on=True
+        self.last_predicted_letter=""
+        self.second_last_predicted_letter=""
         # Open video source (by default this will try to open the computer webcam)
         self.vid = VideoCapture(self.video_source)
         greeting = tkinter.Label(text="ASL Sign Language Detection", font=("Arial", 25))
@@ -107,7 +110,7 @@ class ALSPredictorApplocation:
         c.pack(in_=top, side=RIGHT)
     
         # A Label widget to show in toplevel
-        Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher. \n\n\n\n\n Made by:\nDavid\nMikkel\nOle\nRimba\nØyvind",font=("Arial", 25)).pack()
+        Label(newWindow,text ="Made for the course TMA4851. \n Thanks to our teacher. \n\n\n\n Made by:\nDavid\nMikkel\nOle\nRimba\nØyvind",font=("Arial", 25)).pack()
 
 
     def __keyboard(self):
@@ -297,13 +300,16 @@ class ALSPredictorApplocation:
             best_ind = torch.argmax(distr)
             predicted_letter = self.index_map[int(best_ind)]
 
-            if self.keyboard_on_off and float(self.last_distr_pred[best_ind])>0.4:#Only writes a number if its probability is larger than 0.4.
-                if (predicted_letter!="nothing") and (predicted_letter !="del") and(predicted_letter!="space"):
-                    keyboard.write(predicted_letter)
-                if predicted_letter=="del":
-                    keyboard.write('\b')
-                if predicted_letter=="space":
-                    keyboard.write(" ")
+            if self.keyboard_on_off and float(self.last_distr_pred[best_ind])>0.4:#Only writes a number if its probability is larger than 0.4
+                if not(self.last_predicted_letter==predicted_letter): #Current letter is different than the previous written letter. If we want double letters, we can invent a repeat sign.
+                    if (predicted_letter!="nothing") and (predicted_letter !="del") and(predicted_letter!="space"):
+                        keyboard.write(predicted_letter)
+                    if predicted_letter=="space":
+                        keyboard.write(" ")
+                if predicted_letter=="del" and float(self.last_distr_pred[best_ind])>0.5:#Want to be really sure that we want to delete.
+                        keyboard.write('\b')
+                self.second_last_predicted_letter=copy.copy(self.last_predicted_letter)
+                self.last_predicted_letter=copy.copy(predicted_letter)
 
 
         # Setting output text on window:
@@ -355,7 +361,7 @@ class VideoCapture:
 
 lab = "E"
 def main() -> None: 
-    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, HMM=True)
+    ASLPredictorApplication(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, HMM=True)
 
 
 if __name__ == "__main__":
