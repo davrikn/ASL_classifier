@@ -49,10 +49,7 @@ class ALSPredictorApplocation:
         self.video_source = video_source
         self.keyboard_on_off = False
         self.video_on=True
-        # Display predictions
-        self.my_output_text = ""
-        self.output_text = tkinter.Label(text=self.my_output_text)
-        self.output_text.pack()
+        self.graph_on=True
         # Open video source (by default this will try to open the computer webcam)
         self.vid = VideoCapture(self.video_source)
         greeting = tkinter.Label(text="ASL Sign Language Detection", font=("Arial", 25))
@@ -67,11 +64,17 @@ class ALSPredictorApplocation:
         self.btn_keyboard=tkinter.Button(window, text="Keyboard", width=10, height=2, command=self.__keyboard)
         self.btn_learn_mode=tkinter.Button(window, text="Learn ASL!", width=10, height=2)#Add command
         self.btn_learn_mode=tkinter.Button(window, text="Toggle video-display", width=20, height=2, command=self.__toggleVideo)
+        self.btn_toggle_graph=tkinter.Button(window, text="Toggle display graph", width=20, height=2, command=self.__toggleGraph)
         #self.btn_snapshot=tkinter.Button(window, text="Snapshot", width=10, height=2, command=self.snapshot)
         self.btn_settings.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_keyboard.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         self.btn_learn_mode.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
+        self.btn_toggle_graph.pack(anchor=tkinter.SW, expand=True, in_=top, side=LEFT)
         top.pack(side=TOP)
+        # Display predictions
+        self.my_output_text = ""
+        self.output_text = tkinter.Label(text=self.my_output_text,font=("Arial", 20))
+        self.output_text.pack()
         # Second canvas for plotting
         self.plt_canvas = FigureCanvasTkAgg(self.fig, self.window)
         self.plt_canvas.draw()
@@ -118,6 +121,9 @@ class ALSPredictorApplocation:
 
     def __toggleVideo(self):
         self.video_on=not(self.video_on)
+
+    def __toggleGraph(self):
+        self.graph_on=not(self.graph_on)
 
     def snapshot(self):
         """
@@ -206,7 +212,7 @@ class ALSPredictorApplocation:
         """
         predicted_prob = distr[best_ind]
         self.output_text.config(
-            text="{pred} with probability {prob}. fps: {fps}".format(
+            text="{pred} with probability {prob}. Fps: {fps}".format(
                 pred = predicted_letter,
                 prob = np.round(predicted_prob.item(), 3),
                 fps  = np.round(1/(time0 - self.__last_time))
@@ -223,15 +229,18 @@ class ALSPredictorApplocation:
         Returns:
             None
         """
-        # Plotting barplot every fifth frame:
-        if self.frame % self.cache_size == self.cache_size-1:
-            self.ax.cla()
-            with torch.no_grad():
-                self.ax.bar(self.index_map.values(), distr)
+        if self.graph_on:
+            # Plotting barplot every fifth frame:
+            if self.frame % self.cache_size == self.cache_size-1:
+                self.ax.cla()
+                with torch.no_grad():
+                    self.ax.bar(self.index_map.values(), distr)
 
-        # Drawing barplot on window
-        self.plt_canvas.draw()
-        self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+            # Drawing barplot on window
+            self.plt_canvas.draw()
+            self.plt_canvas.get_tk_widget().pack(fill=tkinter.BOTH, expand=True)
+        else:
+            self.canvas.delete(self.plt_canvas)
     
 
     def __draw_image_on_update(self, has_image: bool, frame) -> None:
@@ -280,7 +289,6 @@ class ALSPredictorApplocation:
             ))
 
             self.last_distr_pred = distr
-            print(self.last_distr_pred)
             best_ind = torch.argmax(distr)
             predicted_letter = self.index_map[int(best_ind)]
 
