@@ -31,7 +31,7 @@ with open("emission_onenorm.txt", 'rb') as f:
 
 UNIFORM_TRANSITION = np.ones((29, 29))/29
 
-SEMI_UNIFORM_TRANSITION = generate_semi_uniform_transition_matrix(beta=0.7)
+SEMI_UNIFORM_TRANSITION = generate_semi_uniform_transition_matrix(beta=0.5)
 
 
 
