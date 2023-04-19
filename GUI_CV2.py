@@ -341,8 +341,8 @@ class VideoCapture:
 
 
 lab = "E"
-def main() -> None:
-    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, save_loc=f"data/generated/{lab}/")
+def main() -> None: 
+    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5)
 
 
 if __name__ == "__main__":
