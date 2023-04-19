@@ -22,7 +22,7 @@ from tests.test_TorchQueue import test_TorchQueue
 
 def main():
     # test_TorchQueue()
-    test_get_emission_probabilities_alt()
+    test_get_emission_probabilities()
     plt.show()
 
 if __name__ == "__main__":

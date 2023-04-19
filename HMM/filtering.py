@@ -34,7 +34,7 @@ def filtering(obs: np.ndarray, trans: np.ndarray, emission: np.ndarray, obs0: np
         # Calculating weighted average based on observations
         alpha = np.sum(obs[t] * alpha[:, None], axis=0).flatten()
     
-    return alpha
+    return alpha / np.linalg.norm(alpha, ord=1)
 
 
 def main() -> None:

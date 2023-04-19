@@ -18,7 +18,7 @@ from utility.torch_queue import TorchQueue
 
 class ALSPredictorApplocation:
     
-    def __init__(self, window, window_title, save_loc = None, cache_size=10, video_source=0) -> None:
+    def __init__(self, window, window_title, save_loc = None, cache_size=10, video_source=0, HMM=True) -> None:
 
         """ PyTorch """
         self.norm_transform = transforms.Normalize(
@@ -28,7 +28,7 @@ class ALSPredictorApplocation:
         self.softmax = torch.nn.Softmax(dim=1)
         # Initializing our model
         self.model = DropoutModel()
-        load_model(self.model, model_path="./models/saved/model_v4_4.pth")
+        load_model(self.model, model_path="./models/saved/model_v4_2.pth")
         self.cache_size = cache_size
         self.distr_cache = TorchQueue(torch.ones((cache_size, 29))/29)
         self.last_distr_pred = torch.ones(29)/29
@@ -41,6 +41,7 @@ class ALSPredictorApplocation:
         # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 50
         self.save_loc = save_loc
+        self.HMM = HMM
 
         """ OpenCV """
         # Initializing a window
@@ -283,12 +284,16 @@ class ALSPredictorApplocation:
 
             self.__predict(image)
 
-            distr = torch.tensor(semi_uniform_predict(
-                self.distr_cache[None].numpy(),
-                self.last_distr_pred.numpy()
-            ))
+            if self.HMM:
+                distr = torch.tensor(semi_uniform_predict(
+                    self.distr_cache[None].numpy(),
+                    self.last_distr_pred.numpy()
+                ))
 
-            self.last_distr_pred = distr
+                self.last_distr_pred = distr
+            else:
+                distr = self.distr_cache[self.cache_size-1]
+
             best_ind = torch.argmax(distr)
             predicted_letter = self.index_map[int(best_ind)]
 
@@ -349,8 +354,8 @@ class VideoCapture:
 
 
 lab = "E"
-def main() -> None:
-    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, save_loc=f"data/generated/{lab}/")
+def main() -> None: 
+    ALSPredictorApplocation(tkinter.Tk(), "Tkinter and OpenCV", cache_size=5, HMM=True)
 
 
 if __name__ == "__main__":
